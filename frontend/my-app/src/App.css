@@ -1,0 +1,112 @@
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #f0f2f5;
+}
+
+.App {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.App-header {
+  background-color: #fff;
+  padding: 20px;
+  border-bottom: 1px solid #ddd;
+  text-align: center;
+}
+
+.App-header h1 {
+  margin: 0;
+  font-size: 24px;
+}
+
+.App-main {
+  display: flex;
+  flex: 1;
+  padding: 20px;
+}
+
+.feed-list {
+  width: 300px;
+  border-right: 1px solid #ddd;
+  padding-right: 20px;
+}
+
+.feed-list h2 {
+  margin-top: 0;
+}
+
+.feed-list ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.feed-list li {
+  padding: 10px;
+  cursor: pointer;
+  border-radius: 5px;
+}
+
+.feed-list li:hover {
+  background-color: #e6f7ff;
+}
+
+.App-header form {
+  margin-top: 10px;
+}
+
+.App-header input[type="text"] {
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  margin-right: 10px;
+  width: 300px;
+}
+
+.App-header button {
+  padding: 10px 15px;
+  border: none;
+  background-color: #007bff;
+  color: white;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.App-header button:hover {
+  background-color: #0056b3;
+}
+
+.article-list {
+  flex: 1;
+  padding-left: 20px;
+}
+
+.article-list h2 {
+  margin-top: 0;
+}
+
+.article-list ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.article-list li {
+  margin-bottom: 10px;
+}
+
+.article-list a {
+  text-decoration: none;
+  color: #007bff;
+}
+
+.article-list a:hover {
+  text-decoration: underline;
+}

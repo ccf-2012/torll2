@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+sqlalchemy
+pydantic
+alembic
+python-dotenv
+httpx
+feedparser
+beautifulsoup4
+pydantic-settings
