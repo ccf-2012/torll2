@@ -1,26 +1,49 @@
-import React, { useState, useEffect } from 'react';
-import { Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Button, TableSortLabel, TablePagination, TextField } from '@mui/material';
+import React, { useState, useEffect, useMemo } from 'react';
+import {
+  Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Button, IconButton,
+  TablePagination, TextField, Box, Collapse, Typography, useMediaQuery, useTheme
+} from '@mui/material';
 import { useNotification } from '../contexts/NotificationContext';
+import {
+  useReactTable,
+  getCoreRowModel,
+  getPaginationRowModel,
+  getSortedRowModel,
+  getFilteredRowModel,
+  getExpandedRowModel,
+  flexRender,
+} from '@tanstack/react-table';
+import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
+import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 
 function SiteTorrentsModule() {
   const [torrents, setTorrents] = useState([]);
-  const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
-  const [orderBy, setOrderBy] = useState('id');
-  const [order, setOrder] = useState('asc'); // 'asc' or 'desc'
-  const [filterTitle, setFilterTitle] = useState(''); // New state for filtering
+  const [sorting, setSorting] = useState([]);
+  const [globalFilter, setGlobalFilter] = useState('');
+  const [pagination, setPagination] = useState({
+    pageIndex: 0,
+    pageSize: 10,
+  });
+  const [expanded, setExpanded] = useState({});
+
   const { showNotification } = useNotification();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
   useEffect(() => {
     fetchTorrents();
-  }, [page, rowsPerPage, orderBy, order, filterTitle]); // Add filterTitle to dependencies
+  }, [pagination, sorting, globalFilter]);
 
   const fetchTorrents = () => {
-    const skip = page * rowsPerPage;
-    const limit = rowsPerPage;
-    let url = `http://localhost:8000/site_torrents/?skip=${skip}&limit=${limit}&sort_by=${orderBy}&sort_order=${order}`;
-    if (filterTitle) {
-      url += `&title=${filterTitle}`;
+    const { pageIndex, pageSize } = pagination;
+    const skip = pageIndex * pageSize;
+    const limit = pageSize;
+    const sort_by = sorting.length > 0 ? sorting[0].id : 'id';
+    const sort_order = sorting.length > 0 ? (sorting[0].desc ? 'desc' : 'asc') : 'asc';
+
+    let url = `/site_torrents/?skip=${skip}&limit=${limit}&sort_by=${sort_by}&sort_order=${sort_order}`;
+    if (globalFilter) {
+      url += `&title=${globalFilter}`;
     }
     fetch(url)
       .then(response => response.json())
@@ -31,106 +54,169 @@ function SiteTorrentsModule() {
       });
   };
 
-  const handleRequestSort = (property) => {
-    const isAsc = orderBy === property && order === 'asc';
-    setOrder(isAsc ? 'desc' : 'asc');
-    setOrderBy(property);
-  };
-
-  const handleChangePage = (event, newPage) => {
-    setPage(newPage);
-  };
-
-  const handleChangeRowsPerPage = (event) => {
-    setRowsPerPage(parseInt(event.target.value, 10));
-    setPage(0);
-  };
-
-  const handleFilterTitleChange = (event) => {
-    setFilterTitle(event.target.value);
-    setPage(0); // Reset page when filter changes
-  };
-
   const handleDownload = (torrent) => {
-    fetch('http://localhost:8000/downloads/add', {
+    fetch('/downloads/add', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         download_link: torrent.downlink,
-        qbit_config_name: 'default', // This should be configurable
+        qbit_config_name: 'default',
       }),
     })
       .then(response => response.json())
       .then(data => {
-        console.log('Download response:', data);
         showNotification('Torrent added to downloader', 'success');
       })
       .catch(error => {
-        console.error('Error downloading torrent:', error);
         showNotification('Error downloading torrent', 'error');
       });
   };
 
-  const headCells = [
-    { id: 'tortitle', numeric: false, disablePadding: false, label: 'Title' },
-    { id: 'torsizestr', numeric: true, disablePadding: false, label: 'Size' },
-    { id: 'seednum', numeric: true, disablePadding: false, label: 'Seeders' },
-    { id: 'downnum', numeric: true, disablePadding: false, label: 'Leechers' },
-  ];
+  const columns = useMemo(() => [
+    {
+      id: 'expander',
+      header: () => null,
+      cell: ({ row }) => (
+        <IconButton
+          aria-label="expand row"
+          size="small"
+          onClick={() => row.toggleExpanded()}
+        >
+          {row.getIsExpanded() ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
+        </IconButton>
+      ),
+    },
+    {
+      accessorKey: 'tortitle',
+      header: 'Title',
+      cell: info => info.getValue(),
+    },
+    {
+      accessorKey: 'torsizestr',
+      header: 'Size',
+    },
+    {
+      accessorKey: 'seednum',
+      header: 'Seeders',
+    },
+    {
+      accessorKey: 'downnum',
+      header: 'Leechers',
+    },
+    {
+      id: 'actions',
+      header: 'Actions',
+      cell: ({ row }) => (
+        <Button variant="contained" size="small" onClick={() => handleDownload(row.original)}>
+          Download
+        </Button>
+      ),
+    },
+  ], []);
+
+  const table = useReactTable({
+    data: torrents,
+    columns,
+    state: {
+      sorting,
+      pagination,
+      globalFilter,
+      expanded,
+    },
+    onSortingChange: setSorting,
+    onPaginationChange: setPagination,
+    onGlobalFilterChange: setGlobalFilter,
+    onExpandedChange: setExpanded,
+    getCoreRowModel: getCoreRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    getExpandedRowModel: getExpandedRowModel(),
+    manualPagination: true,
+    manualSorting: true,
+    manualFiltering: true,
+  });
+
+  useEffect(() => {
+    table.setColumnVisibility({
+      expander: isMobile,
+      torsizestr: !isMobile,
+      seednum: !isMobile,
+      downnum: !isMobile,
+    });
+  }, [isMobile, table]);
 
   return (
-    <Paper>
+    <Paper sx={{ p: { xs: 1, md: 2 }, mb: 3 }}>
       <TextField
         label="Filter by Title"
         variant="outlined"
         fullWidth
         margin="normal"
-        value={filterTitle}
-        onChange={handleFilterTitleChange}
+        value={globalFilter}
+        onChange={e => setGlobalFilter(e.target.value)}
       />
-      <TableContainer sx={{ overflowX: 'auto' }}>
-        <Table sx={{ minWidth: 650, width: '100%' }} aria-label="site torrents table">
+      <TableContainer>
+        <Table>
           <TableHead>
-            <TableRow>
-              {headCells.map((headCell) => (
-                <TableCell
-                  key={headCell.id}
-                  align={headCell.numeric ? 'right' : 'left'}
-                  padding={headCell.disablePadding ? 'none' : 'normal'}
-                  sortDirection={orderBy === headCell.id ? order : false}
-                >
-                  <TableSortLabel
-                    active={orderBy === headCell.id}
-                    direction={orderBy === headCell.id ? order : 'asc'}
-                    onClick={() => handleRequestSort(headCell.id)}
-                  >
-                    {headCell.label}
-                  </TableSortLabel>
-                </TableCell>
-              ))}
-              <TableCell align="right">Actions</TableCell>
-            </TableRow>
+            {table.getHeaderGroups().map(headerGroup => (
+              <TableRow key={headerGroup.id}>
+                {headerGroup.headers.map(header => (
+                  <TableCell key={header.id} colSpan={header.colSpan}>
+                    {header.isPlaceholder ? null : (
+                      <Box
+                        sx={{ cursor: header.column.getCanSort() ? 'pointer' : 'auto' }}
+                        onClick={header.column.getToggleSortingHandler()}
+                      >
+                        {flexRender(header.column.columnDef.header, header.getContext())}
+                        {{ asc: ' 🔼', desc: ' 🔽' }[header.column.getIsSorted()] ?? null}
+                      </Box>
+                    )}
+                  </TableCell>
+                ))}
+              </TableRow>
+            ))}
           </TableHead>
           <TableBody>
-            {torrents.map((torrent) => (
-              <TableRow
-                key={torrent.id}
-                sx={{ '&:last-child td, &:last-child th': { border: 0 } }}
-              >
-                <TableCell component="th" scope="row">
-                  {torrent.tortitle}
-                </TableCell>
-                <TableCell align="right">{torrent.torsizestr}</TableCell>
-                <TableCell align="right">{torrent.seednum}</TableCell>
-                <TableCell align="right">{torrent.downnum}</TableCell>
-                <TableCell align="right">
-                  <Button variant="contained" onClick={() => handleDownload(torrent)}>
-                    Download
-                  </Button>
-                </TableCell>
-              </TableRow>
+            {table.getRowModel().rows.map(row => (
+              <React.Fragment key={row.id}>
+                <TableRow>
+                  {row.getVisibleCells().map(cell => (
+                    <TableCell key={cell.id}>
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </TableCell>
+                  ))}
+                </TableRow>
+                {row.getIsExpanded() && (
+                  <TableRow>
+                    <TableCell colSpan={row.getVisibleCells().length}>
+                       <Collapse in={row.getIsExpanded()} timeout="auto" unmountOnExit>
+                          <Box sx={{ margin: 1 }}>
+                            <Typography variant="h6" gutterBottom component="div">
+                              Details
+                            </Typography>
+                            <Table size="small" aria-label="details">
+                              <TableBody>
+                                <TableRow>
+                                  <TableCell>Size</TableCell>
+                                  <TableCell>{row.original.torsizestr}</TableCell>
+                                </TableRow>
+                                <TableRow>
+                                  <TableCell>Seeders</TableCell>
+                                  <TableCell>{row.original.seednum}</TableCell>
+                                </TableRow>
+                                <TableRow>
+                                  <TableCell>Leechers</TableCell>
+                                  <TableCell>{row.original.downnum}</TableCell>
+                                </TableRow>
+                              </TableBody>
+                            </Table>
+                          </Box>
+                        </Collapse>
+                    </TableCell>
+                  </TableRow>
+                )}
+              </React.Fragment>
             ))}
           </TableBody>
         </Table>
@@ -138,11 +224,11 @@ function SiteTorrentsModule() {
       <TablePagination
         rowsPerPageOptions={[5, 10, 25]}
         component="div"
-        count={-1} // Placeholder for total count, will need another API call for actual count
-        rowsPerPage={rowsPerPage}
-        page={page}
-        onPageChange={handleChangePage}
-        onRowsPerPageChange={handleChangeRowsPerPage}
+        count={-1} // API doesn't provide total count, so we use -1
+        rowsPerPage={table.getState().pagination.pageSize}
+        page={table.getState().pagination.pageIndex}
+        onPageChange={(e, newPage) => table.setPageIndex(newPage)}
+        onRowsPerPageChange={e => table.setPageSize(Number(e.target.value))}
       />
     </Paper>
   );

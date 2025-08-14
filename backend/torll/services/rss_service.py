@@ -89,11 +89,11 @@ def save_to_site_torrent(db: Session, rss_history_item: models.RSSHistory, tor_d
     # This assumes rsstags is a comma-separated string of tags
     if rss_history_item.rsstags:
         tags = [tag.strip().lower() for tag in rss_history_item.rsstags.split(',')]
-        site_torrent.taggy = "gy" in tags
-        site_torrent.tagzz = "zz" in tags
-        site_torrent.tagfree = "free" in tags
-        site_torrent.tag2xfree = "2xfree" in tags
-        site_torrent.tag50off = "50%" in tags or "50off" in tags
+        site_torrent.taggy = "国语" in tags
+        site_torrent.tagzz = "中字" in tags or "中英双字" in tags
+        # site_torrent.tagfree = "free" in tags
+        # site_torrent.tag2xfree = "2xfree" in tags
+        # site_torrent.tag50off = "50%" in tags or "50off" in tags
         # Add more tag mappings as needed
 
     # Default values for seednum, downnum, dlcount, torsizestr if not available
@@ -125,7 +125,7 @@ class RssFeed:
     #     # This needs proper integration with siteconfig/cookie management
     #     pass
 
-    def fetchRss(self):
+    def fetch_rss(self):
         """Fetch and parse the RSS feed."""
         try:
             r = feedparser.parse(self.rssUrl)
@@ -134,7 +134,7 @@ class RssFeed:
             logger.error(f"Error fetching RSS feed from {self.rssUrl}: {e}")
             return None
 
-    def existsInRssHistory(self, db: Session, torname: str, subtitle: str) -> bool:
+    def exists_in_rsshistory(self, db: Session, torname: str, subtitle: str) -> bool:
         """Check if the given torrent name exists in the RSS history."""
         if not torname:
             raise ValueError("Empty torname")
@@ -151,15 +151,15 @@ class RssFeed:
             logger.error(f"An error occurred checking RSS history: {e}")
             return False
 
-    def missFields(self, entry):
+    def miss_fields(self, entry):
         fields = ["id", "title", "link", "links"]
         mislist = [z for z in fields if not hasattr(entry, z)]
         return len(mislist) > 0
 
-    def processRssFeeds(self, db: Session):
+    def process_rss_feeds(self, db: Session):
         # 取得 RSS 条目
         logger.info(f"RSS {self.name} {self.site} - Fetching RSS feed")
-        feed = self.fetchRss()
+        feed = self.fetch_rss()
         if not feed:
             logger.error("RSS URL configuration error or fetch failed.")
             return
@@ -173,14 +173,14 @@ class RssFeed:
         # 遍历 RSS 条目
         for i, rssentry in enumerate(feed.entries):
             # 缺关键字段，跳过
-            if self.missFields(rssentry):
+            if self.miss_fields(rssentry):
                 logger.warning("Missing fields in RSS item, skipping.")
                 continue
 
             # 解析 RSS 条目
             rssinfo = RssEntryInfo(rssentry)
             # 跳过 title, subtitle 有重复的
-            if self.existsInRssHistory(db, rssinfo.title, rssinfo.subtitle):
+            if self.exists_in_rsshistory(db, rssinfo.title, rssinfo.subtitle):
                 logger.info(f"Duplicate RSS entry found: {rssinfo.title} - {rssinfo.subtitle}, skipping.")
                 continue
 

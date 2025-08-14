@@ -22,7 +22,7 @@ async def process_rss_feed(feed_name: str, db: Session = Depends(get_db)):
     # This might require some adjustments in rss_service.RssFeed if it expects a Pydantic model
     # or a dictionary with specific keys.
     rss_processor = rss_service.RssFeed(rss_schemas.RssFeedConfigBase.from_orm(db_rss_feed_config))
-    rss_processor.processRssFeeds(db)
+    rss_processor.process_rss_feeds(db)
     return {"message": f"RSS feed {feed_name} processed successfully."}
 
 @router.get("/rss/history/{rss_name}", response_model=List[rss_schemas.RSSHistory])

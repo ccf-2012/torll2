@@ -1,21 +1,21 @@
 import React, { useState } from 'react';
-import { AppBar, Toolbar, Typography, IconButton, Drawer, List, ListItem, ListItemIcon, ListItemText, Box, useMediaQuery, useTheme, Button } from '@mui/material';
+import { AppBar, Toolbar, Typography, IconButton, Drawer, List, ListItem, ListItemIcon, ListItemText, Box, useMediaQuery, useTheme, Button, Container } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
-import { RssFeed, Storage, GetApp, VideoLibrary, Search, Settings } from '@mui/icons-material'; // Import Settings icon
+import { RssFeed, Storage, GetApp, VideoLibrary, Search, Settings, Brightness4, Brightness7 } from '@mui/icons-material'; // Import Settings icon
 import { Link } from 'react-router-dom';
 
 const drawerWidth = 240;
 
 const menuItems = [
+  { text: '媒体库', icon: <VideoLibrary />, path: '/media-library' },
+  { text: '搜索', icon: <Search />, path: '/search' },
+  { text: '种子', icon: <Storage />, path: '/site-torrents' },
   { text: 'RSS', icon: <RssFeed />, path: '/' },
-  { text: 'Site Torrents', icon: <Storage />, path: '/site-torrents' },
-  { text: 'Downloads', icon: <GetApp />, path: '/downloads' },
-  { text: 'Media Library', icon: <VideoLibrary />, path: '/media-library' },
-  { text: 'Search', icon: <Search />, path: '/search' },
-  { text: 'PT Configs', icon: <Settings />, path: '/pt-configs' }, // New menu item
+  { text: '下载管理', icon: <GetApp />, path: '/downloads' },
+  { text: '站点设置', icon: <Settings />, path: '/pt-configs' }, // New menu item
 ];
 
-function Layout({ children }) {
+function Layout({ children, colorMode, mode }) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -65,14 +65,17 @@ function Layout({ children }) {
               ))}
             </Box>
           )}
+          <IconButton sx={{ ml: 1 }} onClick={colorMode.toggleColorMode} color="inherit">
+            {mode === 'dark' ? <Brightness7 /> : <Brightness4 />}
+          </IconButton>
         </Toolbar>
       </AppBar>
-      <Box
-        component="nav"
-        sx={{ width: { md: drawerWidth }, flexShrink: { md: 0 } }}
-        aria-label="mailbox folders"
-      >
-        {isMobile ? (
+      {isMobile && (
+        <Box
+          component="nav"
+          sx={{ width: { md: drawerWidth }, flexShrink: { md: 0 } }}
+          aria-label="mailbox folders"
+        >
           <Drawer
             variant="temporary"
             open={mobileOpen}
@@ -86,13 +89,15 @@ function Layout({ children }) {
           >
             {drawer}
           </Drawer>
-        ) : (
-          null
-        )}
-      </Box>
+        </Box>
+      )}
       <Box
         component="main"
-        sx={{ flexGrow: 1, p: 0, m: 0, width: '100%' }} // Explicitly set padding, margin, and width
+        sx={{
+          flexGrow: 1,
+          bgcolor: 'background.default',
+          p: { xs: 1, sm: 2, md: 3 },
+        }}
       >
         <Toolbar /> {/* This is to offset content below the AppBar */}
         {children}

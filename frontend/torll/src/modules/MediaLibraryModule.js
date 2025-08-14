@@ -1,32 +1,49 @@
-import React, { useState, useEffect } from 'react';
-import { Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Button, TextField, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Autocomplete, TableSortLabel, TablePagination } from '@mui/material';
+import React, { useState, useEffect, useMemo } from 'react';
+import {
+  Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Button, TextField, 
+  Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Autocomplete, 
+  IconButton, Box, Collapse, Typography, useMediaQuery, useTheme, TablePagination
+} from '@mui/material';
 import { useNotification } from '../contexts/NotificationContext';
+import {
+  useReactTable,
+  getCoreRowModel,
+  getPaginationRowModel,
+  getSortedRowModel,
+  getFilteredRowModel,
+  getExpandedRowModel,
+  flexRender,
+} from '@tanstack/react-table';
+import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
+import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 
 function MediaLibraryModule() {
   const [mediaItems, setMediaItems] = useState([]);
-  const [searchTerm, setSearchTerm] = useState('');
   const [open, setOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
   const [tmdbId, setTmdbId] = useState('');
   const [tmdbCat, setTmdbCat] = useState('');
   const [tmdbSearchResults, setTmdbSearchResults] = useState([]);
-  const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
-  const [orderBy, setOrderBy] = useState('id');
-  const [order, setOrder] = useState('asc'); // 'asc' or 'desc'
-  const [filterTitle, setFilterTitle] = useState(''); // New state for filtering
-  const { showNotification } = useNotification();
+  
+  const [sorting, setSorting] = useState([]);
+  const [globalFilter, setGlobalFilter] = useState('');
+  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
+  const [expanded, setExpanded] = useState({});
 
-  useEffect(() => {
-    fetchMediaItems();
-  }, [page, rowsPerPage, orderBy, order, filterTitle]); // Add filterTitle to dependencies
+  const { showNotification } = useNotification();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
   const fetchMediaItems = () => {
-    const skip = page * rowsPerPage;
-    const limit = rowsPerPage;
-    let url = `http://localhost:8000/media_items/?skip=${skip}&limit=${limit}&sort_by=${orderBy}&sort_order=${order}`;
-    if (filterTitle) {
-      url += `&title=${filterTitle}`;
+    const { pageIndex, pageSize } = pagination;
+    const skip = pageIndex * pageSize;
+    const limit = pageSize;
+    const sort_by = sorting.length > 0 ? sorting[0].id : 'id';
+    const sort_order = sorting.length > 0 ? (sorting[0].desc ? 'desc' : 'asc') : 'asc';
+
+    let url = `/media_items/?skip=${skip}&limit=${limit}&sort_by=${sort_by}&sort_order=${sort_order}`;
+    if (globalFilter) {
+      url += `&title=${globalFilter}`;
     }
     fetch(url)
       .then(response => response.json())
@@ -37,9 +54,9 @@ function MediaLibraryModule() {
       });
   };
 
-  const handleSearch = (event) => {
-    setSearchTerm(event.target.value);
-  };
+  useEffect(() => {
+    fetchMediaItems();
+  }, [pagination, sorting, globalFilter]);
 
   const handleClickOpen = (item) => {
     setSelectedItem(item);
@@ -50,12 +67,12 @@ function MediaLibraryModule() {
 
   const handleClose = () => {
     setOpen(false);
-    setTmdbSearchResults([]); // Clear search results on close
+    setTmdbSearchResults([]);
   };
 
   const handleTmdbSearch = (event, value) => {
-    if (value && value.length > 2) { // Search only if more than 2 characters
-      fetch(`http://localhost:8000/tmdb/search?query=${value}`)
+    if (value && value.length > 2) {
+      fetch(`/tmdb/search?query=${value}`)
         .then(response => response.json())
         .then(data => setTmdbSearchResults(data))
         .catch(error => {
@@ -68,16 +85,11 @@ function MediaLibraryModule() {
   };
 
   const handleCorrectInfo = () => {
-    fetch(`http://localhost:8000/media_items/${selectedItem.id}`,
+    fetch(`/media_items/${selectedItem.id}`,
       {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          tmdbid: tmdbId,
-          tmdbcat: tmdbCat,
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tmdbid: tmdbId, tmdbcat: tmdbCat }),
       })
       .then(() => {
         fetchMediaItems();
@@ -90,82 +102,123 @@ function MediaLibraryModule() {
       });
   };
 
-  const handleRequestSort = (property) => {
-    const isAsc = orderBy === property && order === 'asc';
-    setOrder(isAsc ? 'desc' : 'asc');
-    setOrderBy(property);
-  };
+  const columns = useMemo(() => [
+    {
+      id: 'expander',
+      header: () => null,
+      cell: ({ row }) => (
+        <IconButton size="small" onClick={() => row.toggleExpanded()}>
+          {row.getIsExpanded() ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
+        </IconButton>
+      ),
+    },
+    { accessorKey: 'title', header: 'Title' },
+    { accessorKey: 'tmdbyear', header: 'Year' },
+    { accessorKey: 'tmdbcat', header: 'Category' },
+    {
+      id: 'actions',
+      header: 'Actions',
+      cell: ({ row }) => (
+        <Button variant="contained" size="small" onClick={() => handleClickOpen(row.original)}>
+          Correct Info
+        </Button>
+      ),
+    },
+  ], []);
 
-  const handleChangePage = (event, newPage) => {
-    setPage(newPage);
-  };
+  const table = useReactTable({
+    data: mediaItems,
+    columns,
+    state: { sorting, pagination, globalFilter, expanded },
+    onSortingChange: setSorting,
+    onPaginationChange: setPagination,
+    onGlobalFilterChange: setGlobalFilter,
+    onExpandedChange: setExpanded,
+    getCoreRowModel: getCoreRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    getExpandedRowModel: getExpandedRowModel(),
+    manualPagination: true,
+    manualSorting: true,
+    manualFiltering: true,
+  });
 
-  const handleChangeRowsPerPage = (event) => {
-    setRowsPerPage(parseInt(event.target.value, 10));
-    setPage(0);
-  };
-
-  const handleFilterTitleChange = (event) => {
-    setFilterTitle(event.target.value);
-    setPage(0); // Reset page when filter changes
-  };
-
-  const headCells = [
-    { id: 'title', numeric: false, disablePadding: false, label: 'Title' },
-    { id: 'tmdbyear', numeric: true, disablePadding: false, label: 'Year' },
-    { id: 'tmdbcat', numeric: false, disablePadding: false, label: 'Category' },
-  ];
+  useEffect(() => {
+    table.setColumnVisibility({
+      expander: isMobile,
+      tmdbyear: !isMobile,
+      tmdbcat: !isMobile,
+    });
+  }, [isMobile, table]);
 
   return (
-    <div>
+    <Paper sx={{ p: { xs: 1, md: 2 }, mb: 3 }}>
       <TextField
         label="Filter by Title"
         variant="outlined"
         fullWidth
         margin="normal"
-        value={filterTitle}
-        onChange={handleFilterTitleChange}
+        value={globalFilter}
+        onChange={e => setGlobalFilter(e.target.value)}
       />
-      <TableContainer component={Paper}>
-        <Table sx={{ minWidth: 650 }} aria-label="media items table">
+      <TableContainer>
+        <Table>
           <TableHead>
-            <TableRow>
-              {headCells.map((headCell) => (
-                <TableCell
-                  key={headCell.id}
-                  align={headCell.numeric ? 'right' : 'left'}
-                  padding={headCell.disablePadding ? 'none' : 'normal'}
-                  sortDirection={orderBy === headCell.id ? order : false}
-                >
-                  <TableSortLabel
-                    active={orderBy === headCell.id}
-                    direction={orderBy === headCell.id ? order : 'asc'}
-                    onClick={() => handleRequestSort(headCell.id)}
-                  >
-                    {headCell.label}
-                  </TableSortLabel>
-                </TableCell>
-              ))}
-              <TableCell align="right">Actions</TableCell>
-            </TableRow>
+            {table.getHeaderGroups().map(headerGroup => (
+              <TableRow key={headerGroup.id}>
+                {headerGroup.headers.map(header => (
+                  <TableCell key={header.id} colSpan={header.colSpan}>
+                    {header.isPlaceholder ? null : (
+                      <Box
+                        sx={{ cursor: header.column.getCanSort() ? 'pointer' : 'auto' }}
+                        onClick={header.column.getToggleSortingHandler()}
+                      >
+                        {flexRender(header.column.columnDef.header, header.getContext())}
+                        {{ asc: ' 🔼', desc: ' 🔽' }[header.column.getIsSorted()] ?? null}
+                      </Box>
+                    )}
+                  </TableCell>
+                ))}
+              </TableRow>
+            ))}
           </TableHead>
           <TableBody>
-            {mediaItems.filter(item => item.title && item.title.toLowerCase().includes(filterTitle.toLowerCase())).map((item) => (
-              <TableRow
-                key={item.id}
-                sx={{ '&:last-child td, &:last-child th': { border: 0 } }}
-              >
-                <TableCell component="th" scope="row">
-                  {item.title}
-                </TableCell>
-                <TableCell align="right">{item.tmdbyear}</TableCell>
-                <TableCell align="right">{item.tmdbcat}</TableCell>
-                <TableCell align="right">
-                  <Button variant="contained" onClick={() => handleClickOpen(item)}>
-                    Correct Info
-                  </Button>
-                </TableCell>
-              </TableRow>
+            {table.getRowModel().rows.map(row => (
+              <React.Fragment key={row.id}>
+                <TableRow>
+                  {row.getVisibleCells().map(cell => (
+                    <TableCell key={cell.id}>
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </TableCell>
+                  ))}
+                </TableRow>
+                {row.getIsExpanded() && (
+                  <TableRow>
+                    <TableCell colSpan={row.getVisibleCells().length}>
+                       <Collapse in={row.getIsExpanded()} timeout="auto" unmountOnExit>
+                          <Box sx={{ margin: 1 }}>
+                            <Typography variant="h6" gutterBottom component="div">
+                              Details
+                            </Typography>
+                            <Table size="small" aria-label="details">
+                              <TableBody>
+                                <TableRow>
+                                  <TableCell>Year</TableCell>
+                                  <TableCell>{row.original.tmdbyear}</TableCell>
+                                </TableRow>
+                                <TableRow>
+                                  <TableCell>Category</TableCell>
+                                  <TableCell>{row.original.tmdbcat}</TableCell>
+                                </TableRow>
+                              </TableBody>
+                            </Table>
+                          </Box>
+                        </Collapse>
+                    </TableCell>
+                  </TableRow>
+                )}
+              </React.Fragment>
             ))}
           </TableBody>
         </Table>
@@ -173,11 +226,11 @@ function MediaLibraryModule() {
       <TablePagination
         rowsPerPageOptions={[5, 10, 25]}
         component="div"
-        count={-1} // Placeholder for total count
-        rowsPerPage={rowsPerPage}
-        page={page}
-        onPageChange={handleChangePage}
-        onRowsPerPageChange={handleChangeRowsPerPage}
+        count={-1}
+        rowsPerPage={table.getState().pagination.pageSize}
+        page={table.getState().pagination.pageIndex}
+        onPageChange={(e, newPage) => table.setPageIndex(newPage)}
+        onRowsPerPageChange={e => table.setPageSize(Number(e.target.value))}
       />
       <Dialog open={open} onClose={handleClose}>
         <DialogTitle>Correct Media Info</DialogTitle>
@@ -233,7 +286,7 @@ function MediaLibraryModule() {
           <Button onClick={handleCorrectInfo}>Save</Button>
         </DialogActions>
       </Dialog>
-    </div>
+    </Paper>
   );
 }
 
