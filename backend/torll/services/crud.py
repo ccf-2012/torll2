@@ -1,4 +1,5 @@
 from sqlalchemy.orm import Session
+from typing import List, Optional
 from torll.models import models
 from torll.schemas import schemas, rss_schemas
 

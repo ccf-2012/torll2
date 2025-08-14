@@ -1,19 +1,27 @@
 from fastapi import FastAPI, Depends
 from sqlalchemy.orm import Session
+from fastapi.middleware.cors import CORSMiddleware
 
-from torll.db.database import SessionLocal, engine, Base
+from torll.db.database import SessionLocal, engine, Base, get_db
 from torll.models import models
 from torll.api import endpoints
 
 app = FastAPI()
 
-# Dependency to get DB session
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+origins = [
+    "http://localhost:5006",
+    "http://localhost",
+    "http://127.0.0.1:5006",
+    "http://127.0.0.1",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.get("/")
 def read_root():
