@@ -4,7 +4,7 @@ from torll.schemas import schemas
 from torll.services import crud
 from fastapi import HTTPException
 from loguru import logger
-from qbittorrent import Client
+from qbittorrentapi import Client
 
 def get_qb_client(qbit_config: models.QbitConfig):
     """Helper function to get a qBittorrent client instance."""

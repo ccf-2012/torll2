@@ -6,9 +6,7 @@ alembic
 python-dotenv
 httpx
 feedparser
-beautifulsoup4
 pydantic-settings
 loguru
-simpletmdb
 python-dateutil
-python-qbittorrent
+qbittorrent-api
