@@ -25,21 +25,23 @@ alembic upgrade head
 
 
 ### 启动
-*  前端
+* 前端，启动在5106
 ```sh
 cd frontend/torll 
 # 在 torll2/frontend/torll 目录下
 npm start
 ```
+> 端口设置在 package.json 
 
-- 后湍
+
+* 后湍，启动在5006
 ```sh
 cd backend; 
 # 在 torll2/backend 目录下
 source venv/bin/activate
-uvicorn app.main:app --port 5006 --reload
+uvicorn torll.main:app --port 5006 --reload
 ```
-
+> 后端监听端口要配合前端所设proxy地址，另将来会接收来自torfilter的api请求，届时还需有 `--host 0.0.0.0` 参数
 
 
 
